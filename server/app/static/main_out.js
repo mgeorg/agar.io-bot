@@ -1,3 +1,7 @@
+/* globals 
+    io
+*/
+
 (function(c, e) {
     function qa(a, b) {
         if (b) {
@@ -129,7 +133,8 @@
 
         // The rest is all the fancy targetting logic.
         if (disable_logic) {
-          return;
+            // todo: send current position to server
+            return;
         }
 
         var res;
@@ -160,7 +165,7 @@
         var x_diff = (w - m.x);
         var y_diff = (x - m.y);
         if (!disable_target) {
-          if (x_diff * w + y_diff * x < 0) {
+           if (x_diff * (target_x-w) + y_diff * (target_y-x) > 0) {
             // Only go towards origin.
             continue;
           }
@@ -266,18 +271,18 @@
       if (min_dist_id != 0) {
         if (NearNearThresh(min_dist2, m.size)) {
           run_mode_active = 1;
-          console.log('RUN! threat_list.length = ' + threat_list.length +
-                      ' min_dist = ' + Math.round(Math.sqrt(min_dist2)) + 
-                      ' m.size = ' + m.size +
-                      '(' + Math.round(Math.sqrt(m.size)*100)/100 + ')')
+          // console.log('RUN! threat_list.length = ' + threat_list.length +
+          //             ' min_dist = ' + Math.round(Math.sqrt(min_dist2)) + 
+          //             ' m.size = ' + m.size +
+          //             '(' + Math.round(Math.sqrt(m.size)*100)/100 + ')')
           // console.log('Run away!');
           return FindRunPoint(threat_list);
         } else {
           if (NearFarThresh(min_dist2, m.size)) {
-            console.log('run? threat_list.length = ' + threat_list.length +
-                        ' min_dist = ' + Math.round(Math.sqrt(min_dist2)) + 
-                        ' m.size = ' + m.size +
-                        '(' + Math.round(Math.sqrt(m.size)*100)/100 + ')')
+            // console.log('run? threat_list.length = ' + threat_list.length +
+            //             ' min_dist = ' + Math.round(Math.sqrt(min_dist2)) + 
+            //             ' m.size = ' + m.size +
+            //             '(' + Math.round(Math.sqrt(m.size)*100)/100 + ')')
             if(run_mode_active) {
               return FindRunPoint(threat_list);
             }
@@ -430,35 +435,65 @@
         t.onmessage = mc;
         t.onclose = nc;
         t.onerror = function() {
-            console.log("socket error")
-        }
+            console.log("socket error");
+        };
 
-//        location_socket = new WebSocket(a);
-//        location_socket.binaryType = "arraybuffer";
-//        location_socket.onopen = function() {
-//            var a;
-//            console.log("socket open");
-//            a = V(5);
-//            a.setUint8(0, 254);
-//            a.setUint32(1, 5, !0);
-//            W(a);
-//            a = V(5);
-//            a.setUint8(0, 255);
-//            a.setUint32(1, 2200049715, !0);
-//            W(a);
-//            a = V(1 + b.length);
-//            a.setUint8(0, 80);
-//            for (var d = 0; d < b.length; ++d) a.setUint8(d + 1, b.charCodeAt(d));
-//            W(a);
-//            "login_info" in p.cache && p.I.M(p.cache.login_info[0], p.cache.login_info[1])
-//        };
-//        location_socket.onmessage = SetTargetPosition;
-//        location_socket.onclose = function() {
-//            console.log("Target socket close")
-//        }
-//        location_socket.onerror = function() {
-//            console.log("Target socket error")
-//        }
+        function loadjsfile(filename){
+            var fileref=document.createElement('script');
+            fileref.setAttribute("type","text/javascript");
+            fileref.setAttribute("src", filename);
+            if (typeof fileref!="undefined")
+                document.getElementsByTagName("head")[0].appendChild(fileref);
+        } 
+        loadjsfile("http://cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.5/socket.io.min.js");  //dynamically load and add this .js file
+
+        function pollFileLoad() {
+            console.log('polling...');
+            window.setTimeout(function() {
+                if (typeof(io) !== 'undefined') {
+                    var namespace = '/test'; // change to an empty string to use the global namespace
+
+                    // the socket.io documentation recommends sending an explicit package upon connection
+                    // this is specially important when using the global namespace
+                    locationSocket = io.connect('http://0.0.0.0:5000' + namespace);
+
+                    // event handler for server sent data
+                    // the data is displayed in the "Received" section of the page
+                    locationSocket.on('my response', function(msg) {
+                        $('#log').append('<br>' + $('<div/>').text('Received #' + msg.count + ': ' + msg.data).html());
+                    });
+
+                    // event handler for new connections
+                    locationSocket.on('connect', function() {
+                        locationSocket.emit('my event', {data: 'I\'m connected!'});
+                        locationSocket.emit('my broadcast event', {data: 'agar.io here!'});
+                    });
+
+                    locationSocket.on('location update', function(msg) {
+                        console.log('location! ' + JSON.stringify(msg));
+                        target_x = msg['x'];
+                        target_y = msg['y'];
+                        // $('#log').append('<br>' + $('<div/>').text('Received #' + msg.count + ': ' + msg.data).html());
+                    });
+
+                    var sendLocationLoop = function() {
+                        setTimeout(function() {
+                            if (disable_logic) {
+                                locationSocket.emit('location broadcast', {'x' : w, 'y': x});
+                                console.log('location sent ' + w + ' ' + x);
+                            }
+                            sendLocationLoop();
+                        }, 100);
+                    };
+                    sendLocationLoop();
+
+                } else {
+                    pollFileLoad();
+                }
+            }, 200);
+        }
+        pollFileLoad();
+
     }
 
     function V(a) {
@@ -478,14 +513,6 @@
 
     function mc(a) {
         oc(new DataView(a.data))
-    }
-
-    function SetTargetPosition(buffer) {
-      var d = 0;
-      target_x = buffer.getUInt32(d);
-      d += 4;
-      target_y = buffer.getUInt32(d);
-      d += 4;
     }
 
     function oc(a) {
@@ -1079,8 +1106,8 @@
     // Called on player death.
     function Ib() {
         if (!disable_logic) {
-          setTimeout(c.closeStats, 100);
-          setTimeout(function() {c.setNick('intellibot')}, 200);
+            setTimeout(c.closeStats, 100);
+            setTimeout(function() {c.setNick('intellibot')}, 200);
         }
         
         null == c.storageInfo && c.createDefaultStorage();
@@ -1174,6 +1201,7 @@
     function Dc() {
         c.open("https://plus.google.com/share?url=www.agar.io&hl=en-US", "Agar.io", "width=484,height=580,menubar=no,toolbar=no,resizable=yes,scrollbars=no,left=" + (c.screenX + c.innerWidth / 2 - 242) + ",top=" + (c.innerHeight - 580) / 2)
     }
+
     var ac = document.createElement("canvas");
     if ("undefined" == typeof console || "undefined" == typeof DataView || "undefined" == typeof WebSocket || null == ac || null == ac.getContext || null == c.localStorage) alert("You browser does not support this game, we recommend you to use Firefox to play this");
     else {
@@ -1219,8 +1247,12 @@
             else {
                 var p = {};
                 c.agarApp = p;
+
+
+                //////////////////////////
+                // Game State Globals
                 var Qa, f, M, q, r, ga = null,
-                    t = null,
+                    t = null, // agar.io websocket 
                     w = 0,  // position of ball.
                     x = 0,  // position of ball.
                     E = [],  // Something sent from server one at a time.
@@ -1235,9 +1267,12 @@
                     wa = -1, // Target position.
                     run_mode_active = 0,
                     print_counter = 0,
+                    target_x = 0,
+                    target_y = 0,
                     disable_logic = 0,
                     disable_target = 0,
                     disable_graphics = 0,
+                    locationSocket = null, // flask app websocket
                     tc = 0,
                     K = 0,
                     Pb = 0,
