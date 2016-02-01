@@ -73,6 +73,14 @@ def test_message(message):
          {'data': message['data'], 'count': session['receive_count']})
 
 
+@socketio.on('location broadcast', namespace='/test')
+def test_broadcast_message(message):
+    emit('location update',
+         message,
+         broadcast=True)
+
+
+
 @socketio.on('my broadcast event', namespace='/test')
 def test_broadcast_message(message):
     session['receive_count'] = session.get('receive_count', 0) + 1
