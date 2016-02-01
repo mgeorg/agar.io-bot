@@ -1,0 +1,19 @@
+{
+  "manifest_version": 2,
+
+  "name": "Agar.io Rewriter",
+  "description": "Redirect to the local scripts for Agar.io",
+  "version": "1.0",
+
+  "browser_action": {
+    "default_icon": "icon.png",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "scripts": ["background.js"]
+  },
+	"permissions": [
+		"webRequest", "webRequestBlocking",
+		"*://*.agar.io/"
+	]
+}
