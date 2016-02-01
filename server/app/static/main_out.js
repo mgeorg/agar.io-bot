@@ -455,7 +455,7 @@
 
                     // the socket.io documentation recommends sending an explicit package upon connection
                     // this is specially important when using the global namespace
-                    locationSocket = io.connect('http://0.0.0.0:5000' + namespace);
+                    locationSocket = io.connect(flask_host + namespace);
 
                     // event handler for server sent data
                     // the data is displayed in the "Received" section of the page
@@ -1106,8 +1106,8 @@
     // Called on player death.
     function Ib() {
         if (!disable_logic) {
-            setTimeout(c.closeStats, 100);
-            setTimeout(function() {c.setNick('intellibot')}, 200);
+            setTimeout(c.closeStats, 500);
+            setTimeout(function() {c.setNick('intellibot')}, 1000);
         }
         
         null == c.storageInfo && c.createDefaultStorage();
@@ -1184,13 +1184,13 @@
 
     function Ac() {
         ha || aa || (Zb ? (c.refreshAd(c.adSlots.ab), Cc(), aa = !0, setTimeout(function() {
-            e("#overlays").fadeIn(500, function() {
+            e("#overlays").fadeIn(disable_logic ? 100 : 500, function() {
                 ea()
             });
             e("#stats").show();
             var a = $b("g_plus_share_stats");
             c.fillSocialValues(a, "gPlusShare")
-        }, 1500)) : ta(500))
+        }, disable_logic ? 100 : 1500)) : ta(disable_logic ? 100 : 500))
     }
 
     function $b(a) {
@@ -1273,6 +1273,7 @@
                     disable_target = 0,
                     disable_graphics = 0,
                     locationSocket = null, // flask app websocket
+                    flask_host = 'http://session-scheduler.com:5002',
                     tc = 0,
                     K = 0,
                     Pb = 0,

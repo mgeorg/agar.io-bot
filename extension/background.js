@@ -1,7 +1,7 @@
 /* globals
 chrome
 */
-var baseUrl = 'http://0.0.0.0:5000';
+var baseUrl = 'http://session-scheduler.com:5002';
 
 var endpoints = [
     'environment.js',
