@@ -1,30 +1,24 @@
-//chrome.webRequest.onBeforeRequest.addListener(
-//	function(details) {
-//		// return {redirectUrl: "file:///home/mgeorg/agario_try2/agar.io/master.js" };
-//		return {redirectUrl: "file:///home/mgeorg/alert.js" };
-//	},
-//	{urls: ["*://agar.io/js/master.js*"]},
-//	["blocking"]);
+/* globals
+chrome
+*/
+var baseUrl = 'http://0.0.0.0:5000';
 
-chrome.webRequest.onBeforeRequest.addListener(
-	function(details) {
-    // alert('Making a change to ' + details.url);
-		return {redirectUrl: "http://session-scheduler.com/static/agario/environment.js" };
-	},
-	{urls: ["*://agar.io/environment.js*"]},
-	["blocking"]);
+var endpoints = [
+    'environment.js',
+    'main_out.js',
+    'master.js'
+];
 
-chrome.webRequest.onBeforeRequest.addListener(
-	function(details) {
-    // alert('Making a change to ' + details.url);
-		return {redirectUrl: "http://session-scheduler.com/static/agario/main_out.js" };
-	},
-	{urls: ["*://agar.io/main_out.js*"]},
-	["blocking"]);
-chrome.webRequest.onBeforeRequest.addListener(
-	function(details) {
-    // alert('Making a change to ' + details.url);
-		return {redirectUrl: "http://session-scheduler.com/static/agario/master.js" };
-	},
-	{urls: ["*://agar.io/master.js*"]},
-	["blocking"]);
+var redirectEndpoint = function(endpoint) {    
+    chrome.webRequest.onBeforeRequest.addListener(
+        function(details) {
+            return { redirectUrl: baseUrl + '/static/' + endpoint };
+        },
+        {urls: ['*://agar.io/' + endpoint + '*']},
+        ["blocking"]
+    );
+};
+
+for (var i = 0; i < endpoints.length; i++) {
+    redirectEndpoint(endpoints[i]);
+}
