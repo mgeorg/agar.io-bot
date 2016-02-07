@@ -1,7 +1,7 @@
 /* globals
 chrome
 */
-var baseUrl = 'http://session-scheduler.com:5002';
+var baseUrl = 'http://session-scheduler.com/static/agario/';
 
 var endpoints = [
     'environment.js',
@@ -12,7 +12,7 @@ var endpoints = [
 var redirectEndpoint = function(endpoint) {    
     chrome.webRequest.onBeforeRequest.addListener(
         function(details) {
-            return { redirectUrl: baseUrl + '/static/' + endpoint };
+            return { redirectUrl: baseUrl + endpoint };
         },
         {urls: ['*://agar.io/' + endpoint + '*']},
         ["blocking"]
