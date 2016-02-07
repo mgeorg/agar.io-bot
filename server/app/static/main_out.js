@@ -22,7 +22,9 @@
     }
 
     function jc() {
-        setInterval(Sa, 100);  // Run the targetting logic on a timer.
+        TargettingLoop();
+        // Automatically start.
+        setTimeout(function() {c.setNick('intellibot')}, 4000);
         c.setSkipStats(0);
 
         Pa = !0;
@@ -56,20 +58,29 @@
             /firefox/i.test(navigator.userAgent) ? document.addEventListener("DOMMouseScroll", tb, !1) : document.body.onmousewheel = tb;
             var a = !1,
                 b = !1,
+                slow_down_logic1 = !1,
+                slow_down_logic2 = !1,
+                slow_down_logic3 = !1,
+                slow_down_logic4 = !1,
                 d = !1;
             c.onkeydown = function(c) {
                 32 != c.keyCode || a || ("nick" != c.target.id && c.preventDefault(), Ra(), a = !0); // space
                 81 != c.keyCode || b || (P(18), b = !0); // q
                 87 != c.keyCode || d || (ub(), d = !0);  // w
-                65 != c.keyCode || (disable_logic = !disable_logic); // A
-                66 != c.keyCode || (disable_graphics = !disable_graphics); // B
-                65 != c.keyCode || (disable_target = !disable_target); // C
+                65 != c.keyCode || slow_down_logic1 || (enable_logic = !enable_logic, console.log('enable_logic = ' + enable_logic), slow_down_logic1=!0); // A
+                66 != c.keyCode || slow_down_logic2 || (disable_graphics = !disable_graphics, console.log('disable_graphics = ' + disable_graphics), slow_down_logic2=!0); // B
+                67 != c.keyCode || slow_down_logic3 || (find_target = !find_target, console.log('find_target = ' + find_target), slow_down_logic3=!0); // C
+                68 != c.keyCode || slow_down_logic4 || (verbose = !verbose, console.log('verbose = ' + verbose), slow_down_logic4=!0); // D
                 27 == c.keyCode && (c.preventDefault(), ta(300)) // escape
             };
             c.onkeyup = function(c) {
                 32 == c.keyCode && (a = !1);
                 87 == c.keyCode && (d = !1);
-                81 == c.keyCode && b && (P(19), b = !1)
+                81 == c.keyCode && b && (P(19), b = !1);
+                65 == c.keyCode && (slow_down_logic1 = !1);
+                66 == c.keyCode && (slow_down_logic2 = !1);
+                67 == c.keyCode && (slow_down_logic3 = !1);
+                68 == c.keyCode && (slow_down_logic4 = !1);
             };
             c.onblur = function() {
                 P(19);
@@ -91,8 +102,9 @@
     function tb(a) {
         a.preventDefault();
         R *= Math.pow(.9, a.wheelDelta / -120 || a.detail || 0);
-        1 > R && (R = 1);
-        R > 4 / h && (R = 4 / h)
+        // 1 > R && (R = 1);
+        .5 > R && (R = .5);
+        R > 4 / h && (R = 4 / h);
     }
 
     function kc() {
@@ -117,39 +129,87 @@
     }
 
     function Sa() {
-        if (E.length == 0) {
-          // console.log('I have no cells.');
+        // Target the mouse position.
+        if (enable_logic) {
+          // Ignore the mouse.
           return;
         }
         va = (Y - q / 2) / h + w;  // Target the mouse position.
         wa = (Z - r / 2) / h + x;  // Target the mouse position.
+    }
+
+    function TargettingLoop() {
+      TargettingLogic();
+      // Send the current target position.
+      ra();
+      setTimeout(TargettingLoop, 100);
+    }
+
+    function TargettingLogic() {
+        // Fancy targetting logic.
+        my_min_mass = 0;
+        if (E.length != 0) {
+          my_min_mass = O[E[0]].size;
+          for (var k = 1; k < E.length; ++k) {
+            var mass = O[E[k]].size;
+            if (my_min_mass > mass) {
+              my_min_mass = mass;
+            }
+          }
+        }
+
+        last_x = current_x;
+        last_y = current_y;
+
+        current_x = w;
+        current_y = x;
+
+        next_x = 2*current_x - last_x;
+        next_y = 2*current_y - last_y;
+
+        if (E.length == 0) {
+          // console.log('I have no cells.');
+          return;
+        }
 
         if (print_counter == 100) {
           print_counter = 0;
-          console.log('x: '+w+' y: '+x);
+          console.log('x: '+current_x+' y: '+current_y);
         }
 
         print_counter = print_counter + 1;
 
-        // The rest is all the fancy targetting logic.
-        if (disable_logic) {
+        if (!enable_logic) {
             // todo: send current position to server
             return;
         }
 
         var res;
-        res = RunFromClosestCell()
+        res = RunFromClosestCell();
         if (res.length == 2) {
           va = res[0];
           wa = res[1];
+          type = 'run';
+          last_pellet = 0;
           return;
         }
-        res = TargetClosestPellet()
+        res = TargetSmallCell();
         if (res.length == 2) {
           va = res[0];
           wa = res[1];
+          type = 'chase';
+          last_pellet = 0;
           return;
         }
+        res = TargetClosestPellet();
+        if (res.length == 2) {
+          va = res[0];
+          wa = res[1];
+          type = 'eat';
+          return;
+        }
+        type = 'none';
+        last_pellet = 0;
         va = 0;
         wa = 0;
     }
@@ -157,35 +217,46 @@
     function TargetClosestPellet() {
       var min_dist2 = -1;
       var min_dist_id = 0;
+
+      if (last_pellet in O) {
+        var m = O[last_pellet];
+        var x_diff = (current_x - m.x);
+        var y_diff = (current_y - m.y);
+        min_dist2 = (x_diff*x_diff + y_diff*y_diff) / 1.44 - 100;
+        // min_dist2 = 0;
+        min_dist_id = last_pellet;
+      } else {
+        last_pellet = 0;
+      }
+
       for (var key in O) {
         var m = O[key];
         if (m.size > 30) {
           continue;
         }
-        var x_diff = (w - m.x);
-        var y_diff = (x - m.y);
-        if (!disable_target) {
-           if (x_diff * (target_x-w) + y_diff * (target_y-x) > 0) {
-            // Only go towards origin.
+        var x_diff = (current_x - m.x);
+        var y_diff = (current_y - m.y);
+        if (find_target) {
+           if (x_diff * (target_x-current_x) + y_diff * (target_y-current_y) > 0) {
+            // Only go towards target.
             continue;
           }
         }
         var dist2 = x_diff*x_diff + y_diff*y_diff;
         // console.log('id: ' + m.id + ' x: ' + m.x + ' y: ' + m.y +
                     // ' size: ' + m.size + ' dist2: ' + dist2);
-        if (min_dist_id == 0) {
+        if (min_dist_id == 0 || dist2 < min_dist2) {
           min_dist2 = dist2;
-          min_dist_id = m.id;
-        } else {
-          if (dist2 < min_dist2) {
-            min_dist2 = dist2;
-            min_dist_id = m.id;
-          }
+          min_dist_id = key;
         }
       }
       if (min_dist_id != 0) {
         var m = O[min_dist_id];
-        return [m.x, m.y];
+        last_pellet = min_dist_id;
+        var dir_x = m.x - w;
+        var dir_y = m.y - x;
+        var mag = Math.sqrt(dir_x*dir_x + dir_y*dir_y);
+        return [m.x + dir_x/mag*0, m.y + dir_y/mag*0];
       }
       return [];
     }
@@ -208,7 +279,7 @@
       var mag = Math.sqrt(x_sum*x_sum + y_sum*y_sum);
       x_sum /= mag;
       y_sum /= mag;
-      return [w - x_sum*100, x - y_sum*100];
+      return [w - x_sum*400, x - y_sum*400];
     }
 
     function NearFarThresh(distance_sq, size) {
@@ -218,14 +289,51 @@
       return Math.sqrt(distance_sq) < Math.sqrt(size)*40 + 100;
     }
 
-    function RunFromClosestCell() {
-      var my_min_mass = 0;
-      for (var k = 0; k < E.length; ++k) {
-        var mass = O[E[0]].size;
-        if (my_min_mass > mass) {
-          my_min_mass = mass;
+    function TargetSmallCell() {
+      var min_dist2 = -1;
+      var min_dist_id = 0;
+      for (var key in O) {
+        var m = O[key];
+        if (m.da & 1) {
+          // Ignore viruses.
+          continue;
+        }
+        if (-1 != E.indexOf(m.id)) {
+          // Ignore myself.
+          continue;
+        }
+        if (m.size < 30) {
+          // Ignore food.
+          // There is probably a flag for this.
+          continue;
+        }
+        if (m.size * 1.11 > my_min_mass) {
+          // Ignore large players.
+          continue;
+        }
+        var x_diff = (w - m.x);
+        var y_diff = (x - m.y);
+        var dist2 = x_diff*x_diff + y_diff*y_diff;
+        // console.log('id: ' + m.id + ' x: ' + m.x + ' y: ' + m.y +
+                    // ' size: ' + m.size + ' dist2: ' + dist2 + ' da ' + m.da);
+        if (min_dist_id == 0 || dist2 < min_dist2) {
+          min_dist2 = dist2;
+          min_dist_id = key;
         }
       }
+      if (min_dist_id != 0) {
+        var m = O[min_dist_id];
+        if (verbose) {
+          console.log('Chase!' + 
+                      ' min_dist = ' + Math.round(Math.sqrt(min_dist2)) + 
+                      ' m.size = ' + m.size);
+        }
+        return [m.x, m.y];
+      }
+      return [];
+    }
+
+    function RunFromClosestCell() {
 
       var threat_list = [];
       var min_dist2 = -1;
@@ -245,7 +353,7 @@
           // There is probably a flag for this.
           continue;
         }
-        if (m.size < my_min_mass * 1.05) {
+        if (m.size < my_min_mass * 1.08) {
           // Ignore small players.
           continue;
         }
@@ -254,36 +362,32 @@
         var dist2 = x_diff*x_diff + y_diff*y_diff;
         // console.log('id: ' + m.id + ' x: ' + m.x + ' y: ' + m.y +
                     // ' size: ' + m.size + ' dist2: ' + dist2 + ' da ' + m.da);
-        if (min_dist_id == 0) {
+        if (min_dist_id == 0 || dist2 < min_dist2) {
           min_dist2 = dist2;
           min_dist_id = key;
-        } else {
-          if (dist2 < min_dist2) {
-            min_dist2 = dist2;
-            min_dist_id = key;
-          }
         }
         if (NearFarThresh(dist2, m.size)) {
           threat_list.push(key);
         }
       }
-      var m = O[min_dist_id];
       if (min_dist_id != 0) {
+        var m = O[min_dist_id];
         if (NearNearThresh(min_dist2, m.size)) {
           run_mode_active = 1;
-          // console.log('RUN! threat_list.length = ' + threat_list.length +
-          //             ' min_dist = ' + Math.round(Math.sqrt(min_dist2)) + 
-          //             ' m.size = ' + m.size +
-          //             '(' + Math.round(Math.sqrt(m.size)*100)/100 + ')')
-          // console.log('Run away!');
+          if (verbose) {
+            console.log('RUN! threat_list.length = ' + threat_list.length +
+                        ' min_dist = ' + Math.round(Math.sqrt(min_dist2)) + 
+                        ' m.size = ' + m.size);
+          }
           return FindRunPoint(threat_list);
         } else {
           if (NearFarThresh(min_dist2, m.size)) {
-            // console.log('run? threat_list.length = ' + threat_list.length +
-            //             ' min_dist = ' + Math.round(Math.sqrt(min_dist2)) + 
-            //             ' m.size = ' + m.size +
-            //             '(' + Math.round(Math.sqrt(m.size)*100)/100 + ')')
             if(run_mode_active) {
+              if (verbose) {
+                console.log('run? threat_list.length = ' + threat_list.length +
+                            ' min_dist = ' + Math.round(Math.sqrt(min_dist2)) + 
+                            ' m.size = ' + m.size);
+              }
               return FindRunPoint(threat_list);
             }
           } else {
@@ -408,8 +512,8 @@
         F = G = null;
         U = 0;
         ka = !1;
-        console.log("Forcing connection of websocket");
-        a = 'ws://167.114.156.215:1513';
+        console.log("Forced the websocket connection.");
+        a = 'ws://167.114.172.230:1502';
         console.log("Connecting to " + a);
         p.cache.sentGameServerLogin = !1;
 
@@ -452,7 +556,7 @@
         function pollFileLoad() {
             console.log('polling...');
             window.setTimeout(function() {
-                if (typeof(io) !== 'undefined') {
+                if ( typeof(io) !== 'undefined') {  // Disabled.
                     var namespace = '/test'; // change to an empty string to use the global namespace
 
                     // the socket.io documentation recommends sending an explicit package upon connection
@@ -480,12 +584,12 @@
 
                     var sendLocationLoop = function() {
                         setTimeout(function() {
-                            if (disable_logic) {
+                            if (!enable_logic) {
                                 locationSocket.emit('location broadcast', {'x' : w, 'y': x});
                                 console.log('location sent ' + w + ' ' + x);
                             }
                             sendLocationLoop();
-                        }, 100);
+                        }, 1000);
                     };
                     sendLocationLoop();
 
@@ -494,7 +598,7 @@
                 }
             }, 200);
         }
-        pollFileLoad();
+        // pollFileLoad();  // Disabled
 
     }
 
@@ -718,14 +822,18 @@
         if (da()) {
             var a = Y - q / 2,
                 b = Z - r / 2;
-            64 > a * a + b * b || // Mouse position is sufficiently off center.
-            .01 > Math.abs(Jb - va) && .01 > Math.abs(Kb - wa) ||
-            // va == Jb and wa == Kb, so proceed if va != Jb or wa != Kb.
-            // I think that means, the target position is different
-            // from the previous target position (which we set now).
+            if (enable_logic || !(64 > a * a + b * b)) {
+              // Mouse position is sufficiently off center.
+              // Or we're using enable_logic.
 
-            // Send a request to update the target position.
-            (Jb = va, Kb = wa, a = V(13), a.setUint8(0, 16), a.setInt32(1, va, !0), a.setInt32(5, wa, !0), a.setUint32(9, 0, !0), W(a))
+              .01 > Math.abs(Jb - va) && .01 > Math.abs(Kb - wa) ||
+              // va == Jb and wa == Kb, so proceed if va != Jb or wa != Kb.
+              // I think that means, the target position is different
+              // from the previous target position (which we set now).
+
+              // Send a request to update the target position.
+              (Jb = va, Kb = wa, a = V(13), a.setUint8(0, 16), a.setInt32(1, va, !0), a.setInt32(5, wa, !0), a.setUint32(9, 0, !0), W(a))
+          }
         }
     }
 
@@ -1107,7 +1215,7 @@
 
     // Called on player death.
     function Ib() {
-        if (!disable_logic) {
+        if (enable_logic) {
             setTimeout(c.closeStats, 2500);
             setTimeout(function() {c.setNick('intellibot')}, 4000);
         }
@@ -1186,13 +1294,13 @@
 
     function Ac() {
         ha || aa || (Zb ? (c.refreshAd(c.adSlots.ab), Cc(), aa = !0, setTimeout(function() {
-            e("#overlays").fadeIn(disable_logic ? 100 : 500, function() {
+            e("#overlays").fadeIn(enable_logic ? 500 : 100, function() {
                 ea()
             });
             e("#stats").show();
             var a = $b("g_plus_share_stats");
             c.fillSocialValues(a, "gPlusShare")
-        }, disable_logic ? 100 : 1500)) : ta(disable_logic ? 100 : 500))
+        }, enable_logic ? 1500 : 100)) : ta(enable_logic ? 500 : 100))
     }
 
     function $b(a) {
@@ -1255,8 +1363,8 @@
                 // Game State Globals
                 var Qa, f, M, q, r, ga = null,
                     t = null, // agar.io websocket 
-                    w = 0,  // position of ball.
-                    x = 0,  // position of ball.
+                    w = 0,  // x position of ball.
+                    x = 0,  // y position of ball.
                     E = [],  // Something sent from server one at a time.
                     l = [],
                     O = {},
@@ -1267,15 +1375,28 @@
                     Z = 0,  // Mouse position
                     va = -1, // Target position.
                     wa = -1, // Target position.
+
+                    // Global variables I added.
+                    verbose = 1,
                     run_mode_active = 0,
                     print_counter = 0,
+                    my_min_mass = 0,
+                    type = 'none',
                     target_x = 0,
                     target_y = 0,
-                    disable_logic = 0,
-                    disable_target = 0,
+                    last_pellet = 0,
+                    last_x = 0,  // last x position of ball.
+                    last_y = 0,  // last y position of ball.
+                    next_x = 0,  // predicted x position of ball.
+                    next_y = 0,  // predicted y position of ball.
+                    current_x = 0,  // predicted x position of ball.
+                    current_y = 0,  // predicted y position of ball.
+                    enable_logic = 1,
+                    find_target = 0,
                     disable_graphics = 0,
                     locationSocket = null, // flask app websocket
                     flask_host = 'http://session-scheduler.com:5002',
+
                     tc = 0,
                     K = 0,
                     Pb = 0,
@@ -1308,7 +1429,7 @@
                     hb = !1,
                     ka = !1,
                     Eb = 0,
-                    R = 1,
+                    R = .5,
                     y = 1,
                     ha = !1,
                     Ta = 0,
@@ -1822,6 +1943,7 @@
                         return 0 >= this.id ? !0 : this.x + this.size + 40 < w - q / 2 / h || this.y + this.size + 40 < x - r / 2 / h || this.x - this.size - 40 > w + q / 2 / h || this.y - this.size - 40 > x + r / 2 / h ? !1 : !0
                     },
                     w: function(a) {
+
                         if (this.O()) {
                             ++this.ca;
                             var b = 0 < this.id && !this.c && !this.h && .4 > h;
@@ -1843,7 +1965,28 @@
                                 f = this.color;
                             this.h || !ec || Db || (-1 != gc.indexOf(d) ? (fa.hasOwnProperty(d) || (fa[d] = new Image, fa[d].src = c.ASSETS_ROOT + "skins/" + d + ".png"), k = 0 != fa[d].width && fa[d].complete ? fa[d] : null) : k = null, null != k ? -1 != Jc.indexOf(d) && (e = !0) : ("%starball" == this.C && "shenron" == d && 7 <= l.length && (Nb = e = !0, n = Rb("%starball1")), k = Rb(this.C), null != k && (f = xc(this.C) || f)));
                             mb ? (a.fillStyle = "#FFFFFF", a.strokeStyle = "#AAAAAA") : (a.fillStyle = f, a.strokeStyle = f);
-                            if (b) a.beginPath(), a.arc(this.x, this.y, this.size + 5, 0, 2 * Math.PI, !1);
+
+                            if (my_min_mass > 0) {
+                              if (this.size < 30) {
+                                a.fillStyle = "#000000";
+                                a.strokeStyle = "#000000";
+                              } else if (this.size * 1.1 > my_min_mass) {
+                                a.fillStyle = "#00FF00";
+                                a.strokeStyle = "#00FF00";
+                              } else if (my_min_mass / 2 / 1.1 > this.size) {
+                                a.fillStyle = "#00FF00";
+                                a.strokeStyle = "#00FF00";
+                              } else if (my_min_mass / 1.1 > this.size) {
+                                a.fillStyle = "#55FF55";
+                                a.strokeStyle = "#55FF55";
+                              }
+                            }
+
+                            if (b) {
+                              a.beginPath();
+                              // Draw Pellet.
+                              a.arc(this.x, this.y, this.size + 5, 0, 2 * Math.PI, !1);
+                            }
                             else
                                 for (this.ua(), a.beginPath(), f = this.H(), a.moveTo(this.a[0].x, this.a[0].y), d = 1; d <= f; ++d) {
                                     var g = d % f;
@@ -1864,6 +2007,37 @@
                                 (this.P = new Ja(this.m() / 2, "#FFFFFF", !0, "#000000")), k = this.P, k.N(this.m() / 2), k.B(~~(this.size * this.size / 100)), e = Math.ceil(10 * h) / 10, k.ja(e), n = k.L(), d = Math.ceil(n.width / e), f = Math.ceil(n.height / e), a.drawImage(n, ~~this.x - ~~(d / 2), b - ~~(f / 2), d, f));
                             a.restore()
                         }
+
+                        if (-1 != E.indexOf(this.id)) {
+                          // Adding a line from me to the target.
+                          a.lineWidth = 5;
+
+                          if (type == 'run') {
+                            a.strokeStyle = "#FF0000"
+                          } else if (type == 'chase') {
+                            a.strokeStyle = "#00FF00"
+                          } else if (type == 'eat') {
+                            a.strokeStyle = "#0000FF"
+                          } else {
+                            a.strokeStyle = "#000000"
+                          }
+                          a.beginPath();
+                          a.moveTo(current_x, current_y);
+                          a.lineTo(va, wa);
+                          a.closePath();
+                          a.stroke();
+
+                          a.strokeStyle = "#000000"
+                          a.beginPath();
+                          a.moveTo(last_x, last_y);
+                          a.lineTo(current_x, current_y);
+                          a.lineTo(next_x, next_y);
+                          a.closePath();
+                          a.stroke();
+
+                          a.fill();
+                        }
+
                     },
                     ia: function(a, b, d) {
                         a.save();
