@@ -359,7 +359,7 @@
                     b.alert && alert(b.alert);
                     var d = b.ip;
                     void 0 != A.la && (d = c.location.hostname + ":" + A.la);
-                    Wa("ws" + (Xa ? "s" : "") + "://" + d, b.token)
+                    Wa("ws" + (Xa ? "s" : "") + "://" + d, b.token);
                 }
             },
             dataType: "json",
@@ -408,6 +408,8 @@
         F = G = null;
         U = 0;
         ka = !1;
+        console.log("Forcing connection of websocket");
+        a = 'ws://167.114.156.215:1513';
         console.log("Connecting to " + a);
         p.cache.sentGameServerLogin = !1;
 
@@ -1089,7 +1091,7 @@
                 e(".partyToken").val("agar.io/#" + c.encodeURIComponent(a));
                 e("#helloContainer").attr("data-party-state", "5");
                 ia(":party");
-                Wa("ws://" + b[0], a)
+                Wa("ws://" + b[0], a);
             },
             dataType: "text",
             method: "POST",
@@ -1106,8 +1108,8 @@
     // Called on player death.
     function Ib() {
         if (!disable_logic) {
-            setTimeout(c.closeStats, 500);
-            setTimeout(function() {c.setNick('intellibot')}, 1000);
+            setTimeout(c.closeStats, 2500);
+            setTimeout(function() {c.setNick('intellibot')}, 4000);
         }
         
         null == c.storageInfo && c.createDefaultStorage();
